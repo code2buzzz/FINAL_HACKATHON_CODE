@@ -6,49 +6,133 @@ from config.settings import TABLE_CREATION_SCHEMA_PATH, SYNTHETIC_DATA_DIR, BATC
 from src.components.database.rag_ingestion import RAG_Manager
 from config.settings import MODEL_CONFIG, ROOT_DIR
 
-sample_transaction = {
-    "transaction_id": "TXN100001",
-    "customer_id": "CUST001",
-    "beneficiary_id": "BEN001",
-    "merchant_id": "MER001",
-    "device_id": "DEV001",
-    "transaction_timestamp": "2026-06-11T10:00:00Z",
-    "transaction_type": "TRANSFER",
-    "transaction_amount": 250000,
+sample_transaction_fraud = {
+    "transaction_id": "TXN330291",
+    "customer_id": "CUST711",
+    "beneficiary_id": "BEN409",
+    "merchant_id": "MER881",
+    "device_id": "DEV104",
+    "transaction_timestamp": "2026-06-12T14:45:00Z",
+    "transaction_type": "PAYMENT",
+    "transaction_amount": 1450000,
     "currency": "INR",
-    "payment_method": "UPI",
-    "ip_address": "103.22.10.5",
+    "payment_method": "NET_BANKING",
+    "ip_address": "103.44.12.19",
     "origin_country": "IN",
-    "destination_country": "SG",
-    "transaction_status": "SUCCESS",
+    "destination_country": "KY",
+    "transaction_status": "PENDING",
     "is_international": True,
+    # --- Root Features (Crucial for your Predictor dataframe) ---
+    "hour_of_day": 14,
+    "account_age_days": 2,
+    "transaction_frequency_24h": 18,
+    "failed_transaction_count_24h": 0,
+    "avg_transaction_amount_7d": 0,
+    "session_duration_minutes": 5.4,
+    "device_risk_score": 62.1,
+    "unusual_amount_flag": True,
+    "unusual_location_flag": True,
+    "typing_speed_flag": False,
+    "shared_device_mule_count": 14,
+    "known_fraud_ring_edge": True,
+    "biometric_anomaly_detected": False,
+    "automation_script_suspected": False,
+    "attack_vector_type": "MONEY_LAUNDERING",
+    # --- Classifier Sub-Structure ---
     "features_for_classifier": {
-        "account_age_days": 30,
-        "transaction_frequency_24h": 35,
-        "failed_transaction_count_24h": 4,
-        "avg_transaction_amount_7d": 15000,
-        "session_duration_minutes": 2,
-        "device_risk_score": 92.5,
+        "account_age_days": 2,
+        "transaction_frequency_24h": 18,
+        "failed_transaction_count_24h": 0,
+        "avg_transaction_amount_7d": 0,
+        "session_duration_minutes": 5.4,
+        "device_risk_score": 62.1,
         "unusual_amount_flag": True,
         "unusual_location_flag": True,
-        "typing_speed_flag": True,
+        "typing_speed_flag": False,
     },
+    # --- LangGraph / Agentic Engineering Telemetry ---
     "agent_pipelines_telemetry": {
-        "initial_llm_probability": 0.87,
-        "initial_risk_category": "HIGH",
-        "orchestrator_decision": "INVESTIGATE",
+        "initial_llm_probability": 0.97,
+        "initial_risk_category": "CRITICAL",
+        "orchestrator_decision": "BLOCK",
         "behavioral_agent_context": {
-            "biometric_anomaly_detected": True,
-            "automation_script_suspected": True,
+            "biometric_anomaly_detected": False,
+            "automation_script_suspected": False,
         },
         "graph_agent_context": {
-            "shared_device_mule_count": 8,
+            "shared_device_mule_count": 14,
             "known_fraud_ring_edge": True,
+        },
+        "risk_agent_context": {
+            "sanction_list_match": True,
+            "pep_flag": False,
+            "beneficiary_risk_rating": "HIGH",
+        },
+    },
+}
+
+
+sample_transaction_good = {
+    "transaction_id": "TXN100021",
+    "customer_id": "CUST102",
+    "beneficiary_id": "BEN001",
+    "merchant_id": "MER551",
+    "device_id": "DEV001",
+    "transaction_timestamp": "2026-06-12T12:30:00Z",
+    "transaction_type": "PAYMENT",
+    "transaction_amount": 3500,  # Standard everyday amount
+    "currency": "INR",
+    "payment_method": "UPI",
+    "ip_address": "122.161.44.12",  # Standard domestic ISP range
+    "origin_country": "IN",
+    "destination_country": "IN",
+    "transaction_status": "SUCCESS",
+    "is_international": False,
+    # --- Root Features (Crucial for your Predictor dataframe) ---
+    "hour_of_day": 12,  # Middle of the day, low-risk timing
+    "account_age_days": 1150,  # Vintage, deeply trusted user account
+    "transaction_frequency_24h": 2,
+    "failed_transaction_count_24h": 0,
+    "avg_transaction_amount_7d": 4200,
+    "session_duration_minutes": 2.1,  # Natural human typing and navigation flow
+    "device_risk_score": 4.5,  # Completely safe device footprint
+    "unusual_amount_flag": False,
+    "unusual_location_flag": False,
+    "typing_speed_flag": False,
+    "shared_device_mule_count": 0,
+    "known_fraud_ring_edge": False,
+    "biometric_anomaly_detected": False,
+    "automation_script_suspected": False,
+    "attack_vector_type": "NONE",
+    # --- Classifier Sub-Structure ---
+    "features_for_classifier": {
+        "account_age_days": 1150,
+        "transaction_frequency_24h": 2,
+        "failed_transaction_count_24h": 0,
+        "avg_transaction_amount_7d": 4200,
+        "session_duration_minutes": 2.1,
+        "device_risk_score": 4.5,
+        "unusual_amount_flag": False,
+        "unusual_location_flag": False,
+        "typing_speed_flag": False,
+    },
+    # --- LangGraph / Agentic Engineering Telemetry ---
+    "agent_pipelines_telemetry": {
+        "initial_llm_probability": 0.01,
+        "initial_risk_category": "LOW",
+        "orchestrator_decision": "APPROVE",
+        "behavioral_agent_context": {
+            "biometric_anomaly_detected": False,
+            "automation_script_suspected": False,
+        },
+        "graph_agent_context": {
+            "shared_device_mule_count": 0,
+            "known_fraud_ring_edge": False,
         },
         "risk_agent_context": {
             "sanction_list_match": False,
             "pep_flag": False,
-            "beneficiary_risk_rating": "HIGH",
+            "beneficiary_risk_rating": "LOW",
         },
     },
 }
@@ -57,7 +141,7 @@ sample_transaction = {
 def main():
 
     state = {
-        "transaction": sample_transaction,
+        "transaction": sample_transaction_good,
         "iteration_count": 0,
         "confidence_score": 0,
         "messages": [],

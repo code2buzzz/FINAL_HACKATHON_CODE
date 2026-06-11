@@ -3,14 +3,14 @@ from langgraph.graph import END
 
 from .state import InvestigationState
 
-from .routers import confidence_router
-from .nodes.anomaly_node import anomaly_node
-from .nodes.behavioral_node import behavioral_node
-from .nodes.network_node import network_node
-from .nodes.compliance_node import compliance_node
-from .nodes.reasoning_node import reasoning_node
-from .nodes.decision_node import decision_node
-from .nodes.report_node import report_node
+from src.components.agents.routers import confidence_router
+from src.components.agents.nodes.anomaly_node import anomaly_node
+from src.components.agents.nodes.behavioral_node import behavioral_node
+from src.components.agents.nodes.network_node import network_node
+from src.components.agents.nodes.compliance_node import compliance_node
+from src.components.agents.nodes.reasoning_node import reasoning_node
+from src.components.agents.nodes.decision_node import decision_node
+from src.components.agents.nodes.report_node import report_node
 
 builder = StateGraph(InvestigationState)
 builder.add_node("anomaly", anomaly_node)
