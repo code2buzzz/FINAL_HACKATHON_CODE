@@ -1,4 +1,10 @@
 from src.components.agents.graph import graph
+from src.components.data_gen.generator import generate_data
+from src.components.database.neo4j_ingest import Neo4jIngestor
+from src.components.database.postgres_ingest import PostgresIngestor
+from config.settings import TABLE_CREATION_SCHEMA_PATH, SYNTHETIC_DATA_DIR, BATCH_SIZE
+from src.components.database.rag_ingestion import RAG_Manager
+from config.settings import MODEL_CONFIG, ROOT_DIR
 
 sample_transaction = {
     "transaction_id": "TXN100001",
@@ -63,4 +69,20 @@ def main():
 
 
 if __name__ == "__main__":
+    # Generate synthetic data
+    # generate_data()
+
+    # Ingest into PostgreSQL
+    # postgres_ingestor = PostgresIngestor(SYNTHETIC_DATA_DIR, TABLE_CREATION_SCHEMA_PATH)
+    # postgres_ingestor.setup_database()
+
+    # Ingest into Neo4j
+    # neo4j_ingestor = Neo4jIngestor(SYNTHETIC_DATA_DIR, BATCH_SIZE)
+    # neo4j_ingestor.ingest_data()
+
+    # # RAG Data Ingestion
+    # rag_manager = RAG_Manager()
+    # folders = ["behavioral_anomalies", "network_typologies", "legal_compliance"]
+    # rag_manager.ingest_folders(folders)
+
     main()
