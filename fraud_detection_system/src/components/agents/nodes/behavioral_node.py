@@ -3,11 +3,11 @@ from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
 from src.components.agents.llms.llm_factory import LLMFactory
 from src.components.agents.tools.tools_registery import behavioral_tools
-from config.settings import retriever, BEHAVIORAL_ANOMALIES
+from config.settings import BEHAVIORAL_ANOMALIES
+from src.components.agents.rag.rag_retriever import AgentRetriever
 
-# ----------------------------
-# RAG (MANDATORY)
-# ----------------------------
+# RAG Retriever
+retriever = AgentRetriever()
 
 
 # ----------------------------

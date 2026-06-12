@@ -3,17 +3,21 @@ from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
 from src.components.agents.llms.llm_factory import LLMFactory
 from src.components.agents.tools.tools_registery import network_tools
-from config.settings import retriever, NETWORK_TYPOLOGIES
+from config.settings import NETWORK_TYPOLOGIES
+from src.components.agents.rag.rag_retriever import AgentRetriever
+
+# RAG Retriever
+retriever = AgentRetriever()
 
 # ----------------------------
-# 2. LLM Configuration & Tool Binding
+# 1. LLM Configuration & Tool Binding
 # ----------------------------
 llm = LLMFactory.graph_llm()
 llm_with_tools = llm.bind_tools(network_tools)
 
 
 # ----------------------------
-# 3. System Prompt & Multi-Step Reasoning Guardrails
+# 2. System Prompt & Multi-Step Reasoning Guardrails
 # ----------------------------
 prompt = ChatPromptTemplate.from_messages(
     [
@@ -46,20 +50,20 @@ prompt = ChatPromptTemplate.from_messages(
 
 
 # ----------------------------
-# 4. Agent Execution Engine
+# 3. Agent Execution Engine
 # ----------------------------
 agent = create_tool_calling_agent(llm_with_tools, network_tools, prompt)
 agent_executor = AgentExecutor(
     agent=agent,
     tools=network_tools,
     verbose=True,
-    max_iterations=2,  # Safe loop limit for nested investigations [make it 5 in prod]
+    max_iterations=1,  # Safe loop limit for nested investigations [make it 5 in prod]
     early_stopping_method="force",  # Ensures stability within your state graph runtime
 )
 
 
 # ----------------------------
-# 5. Graph State Node Function
+# 4. Graph State Node Function
 # ----------------------------
 def network_node(state):
     tx = state["transaction"]

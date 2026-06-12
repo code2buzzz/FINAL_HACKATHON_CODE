@@ -10,40 +10,19 @@ class AgentRetriever:
     This is NOT ingestion — only query-time retrieval.
     """
 
-    _instance = None
-    _initialized = False
-
-    def __new__(cls):
-
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-
-        return cls._instance
-
     def __init__(self):
-
-        if self.__class__._initialized:
-            return
-
-        # your original code unchanged
 
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
-        self.persist_directory = os.path.join(
-            ROOT_DIR,
-            "storage",
-            "chroma_storage",
-        )
+        self.persist_directory = os.path.join(ROOT_DIR, "storage", "chroma_storage")
 
         self.vector_store = Chroma(
             collection_name=self.collection_name,
             embedding_function=self.embeddings,
             persist_directory=self.persist_directory,
         )
-
-        self.__class__._initialized = True
 
     # ----------------------------
     # BASIC SEMANTIC SEARCH (DYNAMIC FILTER)

@@ -3,16 +3,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from src.components.agents.rag.rag_retriever import AgentRetriever
-
 # =====================================================
 # INITIALIZATION
 # =====================================================
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
-
-retriever = AgentRetriever()
-
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -141,4 +136,4 @@ MODEL_CONFIG = {
 # AGENT CONFIGURATION
 # =====================================================
 
-MAX_ITERATIONS = 3
+MAX_ITERATIONS = 2

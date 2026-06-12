@@ -165,8 +165,8 @@ if __name__ == "__main__":
     # neo4j_ingestor.ingest_data()
 
     # # RAG Data Ingestion
-    # rag_manager = RAG_Manager()
-    # folders = ["behavioral_anomalies", "network_typologies", "legal_compliance"]
-    # rag_manager.ingest_folders(folders)
+    rag_manager = RAG_Manager()
+    folders = ["behavioral_anomalies", "network_typologies", "legal_compliance"]
+    rag_manager.ingest_folders(folders)
 
     main()
