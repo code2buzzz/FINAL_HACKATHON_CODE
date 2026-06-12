@@ -1,7 +1,7 @@
-# Import tools
+# Import native tools from specialized files
+from network_tools import query_graph_database
 
-
-# Collection of tools
+# Categorized tool arrays
 behavioral_tools = []
 compliance_tools = []
-network_tools = []
+network_tools = [query_graph_database]
