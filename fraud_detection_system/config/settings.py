@@ -136,4 +136,4 @@ MODEL_CONFIG = {
 # AGENT CONFIGURATION
 # =====================================================
 
-MAX_ITERATIONS = 2
+MAX_ITERATIONS = 1

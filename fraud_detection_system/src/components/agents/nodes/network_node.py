@@ -4,10 +4,10 @@ from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from src.components.agents.llms.llm_factory import LLMFactory
 from src.components.agents.tools.tools_registery import network_tools
 from config.settings import NETWORK_TYPOLOGIES
-from src.components.agents.rag.rag_retriever import AgentRetriever
+from src.components.agents.rag.rag_manager import RAG_Manager
 
 # RAG Retriever
-retriever = AgentRetriever()
+retriever = RAG_Manager()
 
 # ----------------------------
 # 1. LLM Configuration & Tool Binding
@@ -57,7 +57,7 @@ agent_executor = AgentExecutor(
     agent=agent,
     tools=network_tools,
     verbose=True,
-    max_iterations=1,  # Safe loop limit for nested investigations [make it 5 in prod]
+    max_iterations=5,  # Safe loop limit for nested investigations [make it 5 in prod]
     early_stopping_method="force",  # Ensures stability within your state graph runtime
 )
 

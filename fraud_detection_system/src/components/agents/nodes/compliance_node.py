@@ -4,10 +4,10 @@ from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from src.components.agents.llms.llm_factory import LLMFactory
 from src.components.agents.tools.tools_registery import compliance_tools
 from config.settings import LEGAL_COMPLIANCE
-from src.components.agents.rag.rag_retriever import AgentRetriever
+from src.components.agents.rag.rag_manager import RAG_Manager
 
 # RAG Retriever
-retriever = AgentRetriever()
+retriever = RAG_Manager()
 
 # ----------------------------
 # LLM (tool-enabled)

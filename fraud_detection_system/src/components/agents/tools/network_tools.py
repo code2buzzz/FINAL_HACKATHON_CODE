@@ -21,45 +21,304 @@ graph = Neo4jGraph(
 # 1. Comprehensive Few-Shot Forensic Examples (10 Patterns)
 # -----------------------------------------------------------
 few_shot_examples = [
+    # -------------------------------------------------
+    # BASIC NODE LOOKUPS
+    # -------------------------------------------------
     {
-        "question": "Identify the customer who did the most transactions.",
-        "cypher": "MATCH (c:Customer)-[:MADE_TRANSACTION]->(t:Transaction) RETURN c.customer_id AS customer_id, c.customer_name AS customer_name, count(t) AS transaction_count ORDER BY transaction_count DESC LIMIT 1",
+        "question": "Find customer C1001.",
+        "cypher": """
+MATCH (c:Customer {customer_id:'C1001'})
+RETURN c
+LIMIT 1
+""",
     },
     {
-        "question": "Find high-risk customers who have made international transactions over 10000.",
-        "cypher": "MATCH (c:Customer)-[:MADE_TRANSACTION]->(t:Transaction) WHERE c.customer_risk_rating = 'HIGH' AND t.transaction_amount > 10000 AND t.is_international = true RETURN c.customer_id AS customer_id, t.transaction_id AS transaction_id, t.transaction_amount AS amount, t.origin_country AS origin, t.destination_country AS destination",
+        "question": "Find transaction TXN5001.",
+        "cypher": """
+MATCH (t:Transaction {transaction_id:'TXN5001'})
+RETURN t
+LIMIT 1
+""",
+    },
+    # -------------------------------------------------
+    # CONNECTION COUNTS
+    # -------------------------------------------------
+    {
+        "question": "Count all graph connections for customer C1001.",
+        "cypher": """
+MATCH (c:Customer {customer_id:'C1001'})
+RETURN
+    c.customer_id AS customer_id,
+    COUNT { (c)--() } AS total_connections
+""",
     },
     {
-        "question": "Check if any customer has sent money to a beneficiary matched with a Sanction Entity.",
-        "cypher": "MATCH (c:Customer)-[:MADE_TRANSACTION]->(t:Transaction)-[:TO_BENEFICIARY]->(b:Beneficiary)-[:SANCTION_MATCH]->(s:SanctionEntity) RETURN c.customer_id AS customer_id, c.customer_name AS customer_name, b.receiver_name AS beneficiary_name, s.entity_name AS sanction_entity, s.sanction_category AS reason",
+        "question": "Find customers with the highest number of graph connections.",
+        "cypher": """
+MATCH (c:Customer)
+RETURN
+    c.customer_id AS customer_id,
+    COUNT { (c)--() } AS connection_count
+ORDER BY connection_count DESC
+LIMIT 10
+""",
+    },
+    # -------------------------------------------------
+    # RELATIONSHIP TYPES
+    # -------------------------------------------------
+    {
+        "question": "Show relationship types between customer C1001 and beneficiaries.",
+        "cypher": """
+MATCH (c:Customer {customer_id:'C1001'})-[r]-(b:Beneficiary)
+RETURN
+    c.customer_id AS customer_id,
+    COLLECT(DISTINCT TYPE(r)) AS relationship_types
+""",
     },
     {
-        "question": "Identify devices that are being shared by more than one customer account.",
-        "cypher": "MATCH (c:Customer)-[:HAS_DEVICE]->(d:Device) WITH d, count(c) AS customer_count WHERE customer_count > 1 MATCH (c2:Customer)-[:HAS_DEVICE]->(d) RETURN d.device_id AS device_id, d.device_type AS device_type, collect(distinct c2.customer_id) AS shared_by_customers, customer_count",
+        "question": "Show all relationship types in the graph.",
+        "cypher": """
+MATCH ()-[r]-()
+RETURN
+    COLLECT(DISTINCT TYPE(r)) AS relationship_types
+""",
     },
     {
-        "question": "Find transactions processed at a merchant with a high fraud history count.",
-        "cypher": "MATCH (t:Transaction)-[:AT_MERCHANT]->(m:Merchant) WHERE m.fraud_transaction_count > 5 RETURN t.transaction_id AS transaction_id, m.merchant_name AS merchant_name, m.merchant_risk_rating AS merchant_risk, t.transaction_amount AS amount",
+        "question": "Find all beneficiaries connected to customer C1001 and show relationship types.",
+        "cypher": """
+MATCH (c:Customer {customer_id:'C1001'})-[r]-(b:Beneficiary)
+RETURN
+    b.receiver_name AS beneficiary_name,
+    TYPE(r) AS relationship_type
+""",
+    },
+    # -------------------------------------------------
+    # SHARED DEVICES
+    # -------------------------------------------------
+    {
+        "question": "Find customers sharing the same device as customer C1001.",
+        "cypher": """
+MATCH (c1:Customer {customer_id:'C1001'})
+      -[:HAS_DEVICE]->
+      (d:Device)
+      <-[:HAS_DEVICE]-
+      (c2:Customer)
+WHERE c1 <> c2
+RETURN
+    d.device_id AS shared_device,
+    COLLECT(DISTINCT c2.customer_id) AS linked_customers
+""",
     },
     {
-        "question": "Get the structural profile and total connection count for a specific customer ID C1001.",
-        "cypher": "MATCH (c:Customer {{customer_id: 'C1001'}}) RETURN c.customer_name AS name, c.customer_risk_rating AS risk, count{{(c)--()}} AS total_graph_connections",
+        "question": "Find devices shared by multiple customers.",
+        "cypher": """
+MATCH (c:Customer)-[:HAS_DEVICE]->(d:Device)
+
+WITH
+    d,
+    COUNT(DISTINCT c) AS customer_count,
+    COLLECT(DISTINCT c.customer_id) AS customers
+
+WHERE customer_count > 1
+
+RETURN
+    d.device_id AS device_id,
+    customer_count,
+    customers
+""",
+    },
+    # -------------------------------------------------
+    # SHARED BENEFICIARIES
+    # -------------------------------------------------
+    {
+        "question": "Find customers connected through shared beneficiaries.",
+        "cypher": """
+MATCH
+(c1:Customer)-[:HAS_BENEFICIARY]->(b:Beneficiary)
+<-[:HAS_BENEFICIARY]-
+(c2:Customer)
+
+WHERE c1.customer_id < c2.customer_id
+
+RETURN
+    c1.customer_id AS customer_1,
+    c2.customer_id AS customer_2,
+    b.receiver_name AS shared_beneficiary
+""",
     },
     {
-        "question": "Look for transactions where account takeover is suspected and flag high risk scores.",
-        "cypher": "MATCH (c:Customer)-[:MADE_TRANSACTION]->(t:Transaction) WHERE t.account_takeover_suspected = true OR t.overall_risk_score > 0.8 RETURN c.customer_id AS customer_id, t.transaction_id AS transaction_id, t.overall_risk_score AS risk_score, t.recommended_action AS action",
+        "question": "Find beneficiaries shared by more than three customers.",
+        "cypher": """
+MATCH (c:Customer)-[:HAS_BENEFICIARY]->(b:Beneficiary)
+
+WITH
+    b,
+    COUNT(DISTINCT c) AS customer_count
+
+WHERE customer_count > 3
+
+RETURN
+    b.receiver_name AS beneficiary_name,
+    customer_count
+""",
+    },
+    # -------------------------------------------------
+    # TRANSACTION PATHS
+    # -------------------------------------------------
+    {
+        "question": "Find transaction path from customer C1001 to beneficiaries.",
+        "cypher": """
+MATCH p=
+(c:Customer {customer_id:'C1001'})
+-[:MADE_TRANSACTION]->
+(t:Transaction)
+-[:TO_BENEFICIARY]->
+(b:Beneficiary)
+
+RETURN p
+LIMIT 20
+""",
     },
     {
-        "question": "What is the total monetary volume of transactions routed to beneficiary accounts registered in high-risk countries?",
-        "cypher": "MATCH (t:Transaction)-[:TO_BENEFICIARY]->(b:Beneficiary) WHERE b.risk_rating = 'HIGH' RETURN sum(t.transaction_amount) AS total_skewed_volume, count(t) AS total_transactions, avg(t.transaction_amount) AS average_amount",
+        "question": "Find paths between customer C1001 and sanction entities.",
+        "cypher": """
+MATCH p=
+(c:Customer {customer_id:'C1001'})
+-[:MADE_TRANSACTION]->
+(t:Transaction)
+-[:TO_BENEFICIARY]->
+(b:Beneficiary)
+-[:SANCTION_MATCH]->
+(s:SanctionEntity)
+
+RETURN p
+LIMIT 20
+""",
     },
+    # -------------------------------------------------
+    # OPTIONAL MATCH
+    # -------------------------------------------------
     {
-        "question": "Find customers whose transactions triggered both an unusual location flag and a high failed transaction count in 24 hours.",
-        "cypher": "MATCH (c:Customer)-[:MADE_TRANSACTION]->(t:Transaction) WHERE t.unusual_location_flag = true AND t.failed_transaction_count_24h > 3 RETURN c.customer_id AS customer_id, c.customer_name AS name, t.transaction_id AS tx_id, t.failed_transaction_count_24h AS failures, t.ip_address AS ip",
+        "question": "Show customer C1001 and any linked sanction entities.",
+        "cypher": """
+MATCH (c:Customer {customer_id:'C1001'})
+
+OPTIONAL MATCH
+(c)-[:HAS_BENEFICIARY]->
+(b:Beneficiary)
+-[:SANCTION_MATCH]->
+(s:SanctionEntity)
+
+RETURN
+    c.customer_id AS customer_id,
+    COLLECT(DISTINCT s.entity_name) AS sanctions
+""",
     },
+    # -------------------------------------------------
+    # SANCTIONS
+    # -------------------------------------------------
     {
-        "question": "List all transactions linked to a blacklisted device, including the session duration and typing speed anomaly status.",
-        "cypher": "MATCH (t:Transaction)-[:VIA_DEVICE]->(d:Device) WHERE d.is_blacklisted = true RETURN t.transaction_id AS tx_id, d.device_id AS device, t.session_duration_minutes AS session_length, t.typing_speed_flag AS speed_anomaly",
+        "question": "Find customers linked to sanction entities.",
+        "cypher": """
+MATCH
+(c:Customer)
+-[:MADE_TRANSACTION]->
+(t:Transaction)
+-[:TO_BENEFICIARY]->
+(b:Beneficiary)
+-[:SANCTION_MATCH]->
+(s:SanctionEntity)
+
+RETURN
+    c.customer_id AS customer_id,
+    b.receiver_name AS beneficiary_name,
+    s.entity_name AS sanction_entity
+""",
+    },
+    # -------------------------------------------------
+    # DEVICE RISK
+    # -------------------------------------------------
+    {
+        "question": "Find transactions linked to blacklisted devices.",
+        "cypher": """
+MATCH
+(t:Transaction)-[:VIA_DEVICE]->(d:Device)
+
+WHERE d.is_blacklisted = true
+
+RETURN
+    t.transaction_id AS transaction_id,
+    d.device_id AS device_id,
+    t.transaction_amount AS amount
+""",
+    },
+    # -------------------------------------------------
+    # TOP RISK TRANSACTIONS
+    # -------------------------------------------------
+    {
+        "question": "Find the highest risk transactions.",
+        "cypher": """
+MATCH (t:Transaction)
+
+RETURN
+    t.transaction_id AS transaction_id,
+    t.overall_risk_score AS risk_score,
+    t.transaction_amount AS amount
+
+ORDER BY risk_score DESC
+LIMIT 20
+""",
+    },
+    # -------------------------------------------------
+    # FRAUD RING
+    # -------------------------------------------------
+    {
+        "question": "Identify customers linked through shared devices and beneficiaries.",
+        "cypher": """
+MATCH
+(c1:Customer)-[:HAS_DEVICE]->(d:Device)<-[:HAS_DEVICE]-(c2:Customer)
+
+MATCH
+(c1)-[:HAS_BENEFICIARY]->(b:Beneficiary)<-[:HAS_BENEFICIARY]-(c2)
+
+WHERE c1 <> c2
+
+RETURN
+    c1.customer_id AS customer_1,
+    c2.customer_id AS customer_2,
+    d.device_id AS shared_device,
+    b.receiver_name AS shared_beneficiary
+""",
+    },
+    # -------------------------------------------------
+    # VARIABLE LENGTH PATHS
+    # -------------------------------------------------
+    {
+        "question": "Find customers connected within three hops of customer C1001.",
+        "cypher": """
+MATCH p=
+(c:Customer {customer_id:'C1001'})
+-[*1..3]-
+(other)
+
+RETURN p
+LIMIT 20
+""",
+    },
+    # -------------------------------------------------
+    # SUBGRAPH INVESTIGATION
+    # -------------------------------------------------
+    {
+        "question": "Investigate all entities connected to customer C1001.",
+        "cypher": """
+MATCH
+(c:Customer {customer_id:'C1001'})
+--(n)
+
+RETURN
+    labels(n) AS node_labels,
+    COUNT(n) AS connection_count
+""",
     },
 ]
 
@@ -74,10 +333,77 @@ Schema:
 {schema}
 
 Rules:
-- Generate exactly ONE Cypher query statement.
-- Never use CREATE, MERGE, DELETE, SET, or CALL (apoc/gds).
-- Return ONLY the executable Cypher query string. Do NOT wrap it in backticks, markdown, or add conversational filler.
-- Always prefer modern element-count syntax: Use `COUNT {{ (n)--() }}` instead of `SIZE((n)--())`.
+- Generate exactly ONE valid Neo4j 5.x Cypher query.
+- Return ONLY the executable Cypher query string.
+- Do not include markdown, backticks, explanations, comments, or conversational text.
+- Never use CREATE, MERGE, DELETE, SET, CALL, APOC, or GDS procedures.
+- Use COUNT { (n)--() } instead of SIZE((n)--()).
+- All RETURN expressions must be directly executable in Neo4j Browser.
+
+Relationship Rules:
+- TYPE() only accepts a relationship variable.
+
+  Correct:
+      MATCH (a)-[r]->(b)
+      RETURN TYPE(r)
+
+  Incorrect:
+      TYPE((a)-[]->(b))
+
+- If relationship information is needed, bind the relationship to a variable first.
+
+  Correct:
+      MATCH (a)-[r]->(b)
+
+  Incorrect:
+      MATCH (a)-[]->(b)
+
+- Never place node patterns inside:
+      TYPE()
+      LABELS()
+      KEYS()
+      PROPERTIES()
+
+- Do not generate anonymous relationships when relationship metadata is required.
+
+Path Rules:
+- Use OPTIONAL MATCH when related entities may not exist.
+- Prefer LIMIT for path exploration and graph traversal queries.
+- Prefer explicit relationship variables whenever relationships are referenced later.
+
+Output Requirements:
+- Generate syntactically valid Neo4j 5.x Cypher only.
+- Every generated query must be executable without modification.
+
+
+Common Invalid Patterns (NEVER GENERATE)
+
+Invalid:
+    TYPE((c)-[]-(b))
+
+Valid:
+    MATCH (c)-[r]-(b)
+    RETURN TYPE(r)
+
+Invalid:
+    SIZE((c)--())
+
+Valid:
+    COUNT { (c)--() }
+
+Invalid:
+    MATCH (c)-[]-(b)
+    RETURN TYPE(r)
+
+Valid:
+    MATCH (c)-[r]-(b)
+    RETURN TYPE(r)
+
+Invalid:
+    LABELS((c)--(b))
+
+Valid:
+    LABELS(c)
 
 Here are examples of correct conversions:"""
 
