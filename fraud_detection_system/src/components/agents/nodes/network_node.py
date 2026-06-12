@@ -16,7 +16,7 @@ client = MultiServerMCPClient(
         "network_graph_server": {
             "transport": "stdio",
             "command": "python",
-            "args": ["mcp_servers/graph_mcp_server.py"],
+            "args": ["src/mcp_servers/graph_mcp_server.py"],
         }
     }
 )
