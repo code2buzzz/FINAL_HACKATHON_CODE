@@ -1,14 +1,14 @@
 import os
 import time
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
 from langchain_neo4j import Neo4jGraph
 from langchain_core.tools import tool
 from langchain_core.prompts import PromptTemplate, FewShotPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.components.agents.llms.llm_factory import LLMFactory
 from config.settings import NEO4J_CONFIG
+from src.components.agents.guardrails.cypher_guardrail import CypherGuardrail
 
+# Initialize components from centralized factory and settings
 llm = LLMFactory.graph_llm()
 
 graph = Neo4jGraph(
@@ -17,7 +17,9 @@ graph = Neo4jGraph(
     password=NEO4J_CONFIG["password"],
 )
 
-# 2. Few-Shot Cypher Generation Strategy
+# -----------------------------------------------------------
+# 1. Comprehensive Few-Shot Forensic Examples (10 Patterns)
+# -----------------------------------------------------------
 few_shot_examples = [
     {
         "question": "Identify the customer who did the most transactions.",
@@ -46,6 +48,18 @@ few_shot_examples = [
     {
         "question": "Look for transactions where account takeover is suspected and flag high risk scores.",
         "cypher": "MATCH (c:Customer)-[:MADE_TRANSACTION]->(t:Transaction) WHERE t.account_takeover_suspected = true OR t.overall_risk_score > 0.8 RETURN c.customer_id AS customer_id, t.transaction_id AS transaction_id, t.overall_risk_score AS risk_score, t.recommended_action AS action",
+    },
+    {
+        "question": "What is the total monetary volume of transactions routed to beneficiary accounts registered in high-risk countries?",
+        "cypher": "MATCH (t:Transaction)-[:TO_BENEFICIARY]->(b:Beneficiary) WHERE b.risk_rating = 'HIGH' RETURN sum(t.transaction_amount) AS total_skewed_volume, count(t) AS total_transactions, avg(t.transaction_amount) AS average_amount",
+    },
+    {
+        "question": "Find customers whose transactions triggered both an unusual location flag and a high failed transaction count in 24 hours.",
+        "cypher": "MATCH (c:Customer)-[:MADE_TRANSACTION]->(t:Transaction) WHERE t.unusual_location_flag = true AND t.failed_transaction_count_24h > 3 RETURN c.customer_id AS customer_id, c.customer_name AS name, t.transaction_id AS tx_id, t.failed_transaction_count_24h AS failures, t.ip_address AS ip",
+    },
+    {
+        "question": "List all transactions linked to a blacklisted device, including the session duration and typing speed anomaly status.",
+        "cypher": "MATCH (t:Transaction)-[:VIA_DEVICE]->(d:Device) WHERE d.is_blacklisted = true RETURN t.transaction_id AS tx_id, d.device_id AS device, t.session_duration_minutes AS session_length, t.typing_speed_flag AS speed_anomaly",
     },
 ]
 
@@ -78,16 +92,25 @@ cypher_prompt = FewShotPromptTemplate(
 cypher_generation_chain = cypher_prompt | llm | StrOutputParser()
 
 
-# 3. Native Agent Tool Export
+# -----------------------------------------------------------
+# 2. Native Agent Tool Export with Context-Enforcing Docstring
+# -----------------------------------------------------------
 @tool
 def query_graph_database(question: str) -> str:
     """
-    Executes a read-only natural language query against the graph database.
-    Use this to look up specific entities, trace paths, inspect transaction details,
-    count relationships, or fetch sequential steps for an ongoing investigation.
-    Input must be a highly specific standalone question.
+    Executes a read-only natural language query against the graph database to find paths,
+    connections, transaction trends, or verify entities.
+
+    CRITICAL INPUT REQUIREMENTS:
+    - The input must be a highly explicit, standalone question containing real values.
+    - This tool is completely STATELESS and has zero memory of previous conversation turns.
+    - Therefore, you MUST NEVER use pronouns or relative phrases like 'this customer', 'their devices',
+    'that transaction', or 'the merchant identified above'.
+    - You MUST extract the exact ID, hash, or name strings from your previous thoughts or tool outputs
+    and place them directly into the text.
+    - BAD: "Find transactions for the customer we just discovered"
+    - GOOD: "Find transactions for customer_id 'C4920'"
     """
-    time.sleep(0.5)  # Rate-limit defense for Groq
 
     try:
         current_schema = graph.schema
@@ -99,10 +122,24 @@ def query_graph_database(question: str) -> str:
         )
 
         print(f"\n[Generated Cypher]: {clean_cypher}")
+
+        # =======================================================
+        # 🛡️ CALL SEPARATED GUARDRAIL GATEWAY
+        # =======================================================
+        is_safe, message = CypherGuardrail.verify_query_safety(clean_cypher)
+
+        if not is_safe:
+            print(f"[SECURITY BLOCK]: {message}")
+            return (
+                f"Investigation Note: Safety guardrail blocked execution. Reason: {message} "
+                "Please rewrite your inquiry using standard read-only investigative questions."
+            )
+        # =======================================================
+
         db_result = graph.query(clean_cypher)
 
         if not db_result:
-            return "Investigation Note: No data found in the database for this query configuration."
+            return "Investigation Note: No records found in the graph for this query configuration."
 
         return str(db_result)
 

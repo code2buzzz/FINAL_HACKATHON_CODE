@@ -3,12 +3,11 @@ from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
 from src.components.agents.llms.llm_factory import LLMFactory
 from src.components.agents.tools.tools_registery import compliance_tools
-from src.components.agents.rag.rag_retriever import AgentRetriever
+from config.settings import retriever, LEGAL_COMPLIANCE
 
 # ----------------------------
 # RAG (MANDATORY)
 # ----------------------------
-rag_retriever = AgentRetriever("legal_compliance")
 
 
 # ----------------------------
@@ -62,7 +61,7 @@ agent_executor = AgentExecutor(agent=agent, tools=compliance_tools, verbose=True
 def compliance_node(state):
     tx = state["transaction"]
 
-    rag_context = rag_retriever.search(str(tx))
+    rag_context = retriever.search(str(tx), LEGAL_COMPLIANCE)
 
     result = agent_executor.invoke({"input": f"""
         Check sanctions, AML, and regulatory concerns.

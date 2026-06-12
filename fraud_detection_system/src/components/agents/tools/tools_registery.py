@@ -1,5 +1,5 @@
 # Import native tools from specialized files
-from network_tools import query_graph_database
+from src.components.agents.tools.network_tools import query_graph_database
 
 # Categorized tool arrays
 behavioral_tools = []

@@ -1,69 +1,85 @@
-import asyncio
-
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain.agents import create_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
 from src.components.agents.llms.llm_factory import LLMFactory
-from src.components.agents.rag.rag_retriever import AgentRetriever
+from src.components.agents.tools.tools_registery import network_tools
+from config.settings import retriever, NETWORK_TYPOLOGIES
 
-# Initialize retriever once
-rag_retriever = AgentRetriever("network_typologies")
+# ----------------------------
+# 2. LLM Configuration & Tool Binding
+# ----------------------------
+llm = LLMFactory.graph_llm()
+llm_with_tools = llm.bind_tools(network_tools)
 
 
-# Initialize MCP
-client = MultiServerMCPClient(
-    {
-        "network_graph_server": {
-            "transport": "stdio",
-            "command": "python",
-            "args": ["src/mcp_servers/graph_mcp_server.py"],
-        }
-    }
+# ----------------------------
+# 3. System Prompt & Multi-Step Reasoning Guardrails
+# ----------------------------
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+        You are an expert forensic network analyst and graph reasoning agent. Your job is to uncover structural fraud patterns, hidden rings, connection anomalies, and entity exposures.
+
+        You MUST use the provided RAG context as structural domain reference data.
+
+        CRITICAL WORKFLOW RULES FOR INVESTIGATION:
+        1. Always analyze the outputs of your previous tool calls before formulating the next step.
+        2. Your graph database tool is completely STATELESS. It does not remember past turns.
+        3. Therefore, your tool questions MUST be explicit, standalone queries.
+        4. NEVER pass pronouns or relative descriptions to the tool (e.g., 'this customer', 'their transaction', 'the device from earlier').
+        5. ALWAYS extract precise ID strings or hashes from past steps and embed them explicitly (e.g., query_graph_database(question="Find transactions for customer_id 'C1002'")).
+        6. Keep investigating iteratively until you have completely resolved all analytical blind spots.
+
+        Output format:
+        - network_risk_score (0 to 1)
+        - mapped_connections_summary (entities and links discovered)
+        - forensic_reasoning
+        - confidence_level
+        """,
+        ),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ]
 )
 
-mcp_tools = None
+
+# ----------------------------
+# 4. Agent Execution Engine
+# ----------------------------
+agent = create_tool_calling_agent(llm_with_tools, network_tools, prompt)
+agent_executor = AgentExecutor(
+    agent=agent,
+    tools=network_tools,
+    verbose=True,
+    max_iterations=2,  # Safe loop limit for nested investigations [make it 5 in prod]
+    early_stopping_method="force",  # Ensures stability within your state graph runtime
+)
 
 
-# Get MCP tools
-async def get_tools():
-    global mcp_tools
-    if mcp_tools is None:
-        mcp_tools = await client.get_tools()
-    return mcp_tools
-
-
-async def run_network_agent(tx):
-
-    llm = LLMFactory.graph_llm()
-    tools = await get_tools()
-
-    # Create agent
-    agent = create_agent(llm, tools=tools)
-
-    # Get RAG context
-    rag_context = rag_retriever.search(str(tx))
-
-    query = {
-        "messages": [
-            (
-                "user",
-                f"""
-                Transaction:
-                {tx}
-
-                RAG CONTEXT:
-                {rag_context}
-
-                Use MCP tools if graph analysis is required.
-                """,
-            )
-        ]
-    }
-
-    result = await agent.ainvoke(query)
-
-    return {"network_result": {"analysis": result["messages"][-1].content}}
-
-
+# ----------------------------
+# 5. Graph State Node Function
+# ----------------------------
 def network_node(state):
-    return asyncio.run(run_network_agent(state["transaction"]))
+    tx = state["transaction"]
+
+    # 1. Execute RAG step to fetch topology hints or typologies
+    rag_context = retriever.search(str(tx), NETWORK_TYPOLOGIES)
+
+    # 2. Execute the iterative tool-calling investigation loop
+    result = agent_executor.invoke({"input": f"""
+        Analyze network and relationship fraud indicators for this transaction.
+
+        Transaction under Investigation:
+        {tx}
+
+        RAG CONTEXT (must use this as network history and topology guidelines):
+        {rag_context}
+
+        Use your graph database query tool to deep-dive into shared entities, 
+        sanction linkages, or multi-hop connection paths if necessary.
+        """})
+
+    # 3. Return the payload cleanly formatted for your network state channel
+    return {"network_result": {"analysis": result["output"]}}

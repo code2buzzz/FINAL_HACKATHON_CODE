@@ -1,9 +1,35 @@
 import os
-from dotenv import load_dotenv
 from pathlib import Path
 
-# Load environment variables
+from dotenv import load_dotenv
+
+from src.components.agents.rag.rag_retriever import AgentRetriever
+
+# =====================================================
+# INITIALIZATION
+# =====================================================
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
+retriever = AgentRetriever()
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+# =====================================================
+# RAG CONFIGURATION
+# =====================================================
+
+BEHAVIORAL_ANOMALIES = "behavioral_anomalies"
+NETWORK_TYPOLOGIES = "network_typologies"
+LEGAL_COMPLIANCE = "legal_compliance"
+
+RAG_DATA_ROOT_DIR = os.getenv("RAG_DATA_DIR", "data/rag")
+
+
+# =====================================================
+# DATABASE CONFIGURATION
+# =====================================================
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
@@ -13,6 +39,15 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", "postgres"),
 }
 
+TABLE_CREATION_SCHEMA_PATH = str(ROOT_DIR / "data" / "sql" / "create_tables.sql")
+
+BATCH_SIZE = 2000
+
+
+# =====================================================
+# NEO4J CONFIGURATION
+# =====================================================
+
 NEO4J_CONFIG = {
     "uri": os.getenv("NEO4J_URI"),
     "user": os.getenv("NEO4J_USERNAME"),
@@ -20,7 +55,31 @@ NEO4J_CONFIG = {
 }
 
 
-# Counts for synthetic data generation
+# =====================================================
+# KAFKA CONFIGURATION
+# =====================================================
+
+KAFKA_CONFIG = {
+    "bootstrap.servers": os.getenv("BOOTSTRAP_SERVERS"),
+    "client.id": os.getenv("CLIENT_ID"),
+}
+
+
+# =====================================================
+# LLM CONFIGURATION
+# =====================================================
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+HF_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+
+
+# =====================================================
+# SYNTHETIC DATA CONFIGURATION
+# =====================================================
+
+SYNTHETIC_DATA_DIR = os.getenv("DATA_DIR", "data/synthetic")
+
 COUNTS = {
     "customers": 2000,
     "devices": 1500,
@@ -47,16 +106,6 @@ REQUIRED_FILES = [
     "transaction_analysis_logs.csv",
 ]
 
-HF_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-SYNTHETIC_DATA_DIR = os.getenv("DATA_DIR", "data/synthetic")
-RAG_DATA_ROOT_DIR = os.getenv("RAG_DATA_DIR", "data/rag")
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")  # Default to Ollama if not set
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-
-HF_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 INGESTION_PIPELINE = [
     ("customers", "customers.csv"),
     ("devices", "devices.csv"),
@@ -70,25 +119,26 @@ INGESTION_PIPELINE = [
     ("transaction_analysis_logs", "transaction_analysis_logs.csv"),
 ]
 
-TABLE_CREATION_SCHEMA_PATH = str(Path(ROOT_DIR) / "data" / "sql" / "create_tables.sql")
-BATCH_SIZE = 2000
+
+# =====================================================
+# MODEL CONFIGURATION
+# =====================================================
 
 MODEL_CONFIG = {
     "preprocessor_path": str(
-        Path(ROOT_DIR) / "models" / "artifacts" / "production_preprocessor_pipeline.pkl"
+        ROOT_DIR / "models" / "artifacts" / "production_preprocessor_pipeline.pkl"
     ),
     "classifier_path": str(
-        Path(ROOT_DIR) / "models" / "artifacts" / "transformed_fraud_classifier.pkl"
+        ROOT_DIR / "models" / "artifacts" / "transformed_fraud_classifier.pkl"
     ),
     "regressor_path": str(
-        Path(ROOT_DIR) / "models" / "artifacts" / "transformed_risk_regressor.pkl"
+        ROOT_DIR / "models" / "artifacts" / "transformed_risk_regressor.pkl"
     ),
 }
 
 
-KAFKA_CONFIG = {
-    "bootstrap.servers": os.getenv("BOOTSTRAP_SERVERS"),
-    "client.id": os.getenv("CLIENT_ID"),
-}
+# =====================================================
+# AGENT CONFIGURATION
+# =====================================================
 
 MAX_ITERATIONS = 3

@@ -11,3 +11,7 @@ for event in graph.stream(initial_state):
 
 *************
 Modify graph structure
+
+
+in network_node.py
+max_iterations=2,  # Safe loop limit for nested investigations [make it 5 in prod]

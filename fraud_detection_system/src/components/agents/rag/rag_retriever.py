@@ -10,11 +10,10 @@ class AgentRetriever:
     This is NOT ingestion — only query-time retrieval.
     """
 
-    def __init__(self, collection_name: str):
-        self.collection_name = collection_name
+    def __init__(self):
 
         self.embeddings = HuggingFaceEmbeddings(
-            model="sentence-transformers/all-MiniLM-L6-v2"
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
         self.persist_directory = os.path.join(ROOT_DIR, "storage", "chroma_storage")
@@ -26,22 +25,29 @@ class AgentRetriever:
         )
 
     # ----------------------------
-    # BASIC SEMANTIC SEARCH
+    # BASIC SEMANTIC SEARCH (DYNAMIC FILTER)
     # ----------------------------
-    def search(self, query: str, k: int = 5) -> str:
+    def search(self, query: str, category: str, k: int = 5) -> str:
         """
-        Returns formatted context for LLM consumption.
+        Returns formatted context for LLM consumption, filtered dynamically by the provided category.
         """
+        # The filter keyword is now driven entirely by your runtime function argument
+        results = self.vector_store.similarity_search(
+            query, k=k, filter={"folder_category": category}
+        )
 
-        results = self.vector_store.similarity_search(query, k=k)
-
-        return self._format_results(results)
+        return self._format_results(results, category)
 
     # ----------------------------
-    # ADVANCED SEARCH (optional but powerful)
+    # ADVANCED SEARCH (DYNAMIC FILTER)
     # ----------------------------
-    def search_with_score(self, query: str, k: int = 5):
-        results = self.vector_store.similarity_search_with_score(query, k=k)
+    def search_with_score(self, query: str, category: str, k: int = 5):
+        """
+        Returns documents with similarity scores, filtered dynamically by the provided category.
+        """
+        results = self.vector_store.similarity_search_with_score(
+            query, k=k, filter={"folder_category": category}
+        )
 
         return [
             {
@@ -55,13 +61,12 @@ class AgentRetriever:
     # ----------------------------
     # FORMAT FOR LLM CONTEXT
     # ----------------------------
-    def _format_results(self, docs):
+    def _format_results(self, docs, category: str):
         """
         Converts retrieved documents into structured LLM context.
         """
-
         if not docs:
-            return "No relevant behavioral context found."
+            return f"No relevant behavioral context found for category '{category}'."
 
         formatted = []
 

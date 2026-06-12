@@ -3,12 +3,11 @@ from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
 from src.components.agents.llms.llm_factory import LLMFactory
 from src.components.agents.tools.tools_registery import behavioral_tools
-from src.components.agents.rag.rag_retriever import AgentRetriever
+from config.settings import retriever, BEHAVIORAL_ANOMALIES
 
 # ----------------------------
 # RAG (MANDATORY)
 # ----------------------------
-rag_retriever = AgentRetriever("behavioral_anomalies")
 
 
 # ----------------------------
@@ -58,7 +57,7 @@ def behavioral_node(state):
     tx = state["transaction"]
 
     # RAG step (mandatory)
-    rag_context = rag_retriever.search(str(tx))
+    rag_context = retriever.search(str(tx), BEHAVIORAL_ANOMALIES)
 
     result = agent_executor.invoke({"input": f"""
         Analyze behavioral fraud indicators.
