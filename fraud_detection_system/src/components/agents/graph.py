@@ -12,6 +12,7 @@ from src.components.agents.nodes.reasoning_node import reasoning_node
 from src.components.agents.nodes.decision_node import decision_node
 from src.components.agents.nodes.report_node import report_node
 
+
 builder = StateGraph(InvestigationState)
 builder.add_node("anomaly", anomaly_node)
 builder.add_node("behavioral", behavioral_node)

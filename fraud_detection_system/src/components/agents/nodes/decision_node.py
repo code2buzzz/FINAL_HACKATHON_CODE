@@ -11,9 +11,7 @@ def guardrail_check(report):
 
 
 def decision_node(state):
-
+    
     report = state["reasoning_result"]
-
     validation = guardrail_check(report)
-
     return {"decision_result": {"approved": validation["approved"], "report": report}}

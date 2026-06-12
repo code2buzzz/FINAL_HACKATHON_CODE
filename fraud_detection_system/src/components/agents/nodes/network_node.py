@@ -1,38 +1,69 @@
-from ..tools.graph_tools import investigate_network
-from ..tools.rag_tools import AgentRetriever
-from ..tools.llm_factory import LLMFactory
+import asyncio
 
-retriever = AgentRetriever("network_typologies")
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain.agents import create_agent
 
-llm = LLMFactory.graph_llm()
+from src.components.agents.llms.llm_factory import LLMFactory
+from src.components.agents.rag.rag_retriever import AgentRetriever
+
+# Initialize retriever once
+rag_retriever = AgentRetriever("network_typologies")
+
+
+# Initialize MCP
+client = MultiServerMCPClient(
+    {
+        "network_graph_server": {
+            "transport": "stdio",
+            "command": "python",
+            "args": ["mcp_servers/graph_mcp_server.py"],
+        }
+    }
+)
+
+mcp_tools = None
+
+
+# Get MCP tools
+async def get_tools():
+    global mcp_tools
+    if mcp_tools is None:
+        mcp_tools = await client.get_tools()
+    return mcp_tools
+
+
+async def run_network_agent(tx):
+
+    llm = LLMFactory.graph_llm()
+    tools = await get_tools()
+
+    # Create agent
+    agent = create_agent(llm, tools=tools)
+
+    # Get RAG context
+    rag_context = rag_retriever.search(str(tx))
+
+    query = {
+        "messages": [
+            (
+                "user",
+                f"""
+                Transaction:
+                {tx}
+
+                RAG CONTEXT:
+                {rag_context}
+
+                Use MCP tools if graph analysis is required.
+                """,
+            )
+        ]
+    }
+
+    result = await agent.ainvoke(query)
+
+    return {"network_result": {"analysis": result["messages"][-1].content}}
 
 
 def network_node(state):
-
-    tx = state["transaction"]
-
-    graph_result = investigate_network(tx)
-
-    rag_context = retriever.search(str(tx))
-
-    prompt = f"""
-    Analyze mule network risk.
-
-    Transaction:
-    {tx}
-
-    Graph:
-    {graph_result}
-
-    Context:
-    {rag_context}
-
-    Return:
-    score
-    confidence
-    reasoning
-    """
-
-    result = llm.invoke(prompt)
-
-    return {"network_result": {"analysis": result.content}}
+    return asyncio.run(run_network_agent(state["transaction"]))

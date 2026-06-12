@@ -1,36 +1,75 @@
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
-from ..tools.rag_tools import AgentRetriever
-from ..tools.llm_factory import LLMFactory
+from src.components.agents.llms.llm_factory import LLMFactory
+from src.components.agents.tools.tools_registery import behavioral_tools
+from src.components.agents.rag.rag_retriever import AgentRetriever
 
-retriever = AgentRetriever("behavioral_anomalies")
+# ----------------------------
+# RAG (MANDATORY)
+# ----------------------------
+rag_retriever = AgentRetriever("behavioral_anomalies")
 
+
+# ----------------------------
+# LLM (tool enabled)
+# ----------------------------
 llm = LLMFactory.behavioral_llm()
+llm_with_tools = llm.bind_tools(behavioral_tools)
 
 
+# ----------------------------
+# Prompt
+# ----------------------------
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+        You are a fraud detection reasoning agent.
+
+        You MUST use the provided RAG context as factual behavioral history.
+
+        You may also use tools for additional investigation.
+
+        Output format:
+        - score (0 to 1)
+        - reasoning
+        - confidence
+        """,
+        ),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ]
+)
+
+
+# ----------------------------
+# Agent
+# ----------------------------
+agent = create_tool_calling_agent(llm_with_tools, behavioral_tools, prompt)
+agent_executor = AgentExecutor(agent=agent, tools=behavioral_tools, verbose=True)
+
+
+# ----------------------------
+# NODE FUNCTION
+# ----------------------------
 def behavioral_node(state):
-
     tx = state["transaction"]
 
-    context = retriever.search(str(tx))
+    # RAG step (mandatory)
+    rag_context = rag_retriever.search(str(tx))
 
-    prompt = ChatPromptTemplate.from_template("""
-    Investigate behavioral fraud indicators.
+    result = agent_executor.invoke({"input": f"""
+        Analyze behavioral fraud indicators.
 
-    Transaction:
-    {tx}
+        Transaction:
+        {tx}
 
-    Context:
-    {context}
+        RAG CONTEXT (must use this as behavioral history):
+        {rag_context}
 
-    Return:
-    score
-    reasoning
-    confidence
-    """)
+        Use tools if additional behavioral investigation is required.
+        """})
 
-    chain = prompt | llm
-
-    result = chain.invoke({"tx": tx, "context": context})
-
-    return {"behavioral_result": {"analysis": result.content}}
+    return {"behavioral_result": {"analysis": result["output"]}}

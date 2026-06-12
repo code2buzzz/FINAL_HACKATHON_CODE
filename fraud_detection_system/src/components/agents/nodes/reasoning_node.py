@@ -1,4 +1,4 @@
-from ..tools.llm_factory import LLMFactory
+from ..llms.llm_factory import LLMFactory
 
 llm = LLMFactory.reasoning_llm()
 

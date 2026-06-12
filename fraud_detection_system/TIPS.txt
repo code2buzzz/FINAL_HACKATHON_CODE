@@ -6,3 +6,8 @@ Python
 for event in graph.stream(initial_state):
     for node_name, updated_state in event.items():
         logger.info(f"📍 State modified via Node: [{node_name}]")
+
+
+
+*************
+Modify graph structure

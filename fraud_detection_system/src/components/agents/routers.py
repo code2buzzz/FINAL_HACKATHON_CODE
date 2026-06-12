@@ -1,4 +1,4 @@
-MAX_ITERATIONS = 2
+from config.settings import MAX_ITERATIONS
 
 
 def confidence_router(state):

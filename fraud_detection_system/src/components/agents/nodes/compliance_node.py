@@ -1,26 +1,79 @@
-from ..tools.rag_tools import AgentRetriever
-from ..tools.llm_factory import LLMFactory
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 
-retriever = AgentRetriever("legal_compliance")
+from src.components.agents.llms.llm_factory import LLMFactory
+from src.components.agents.tools.tools_registery import compliance_tools
+from src.components.agents.rag.rag_retriever import AgentRetriever
 
+# ----------------------------
+# RAG (MANDATORY)
+# ----------------------------
+rag_retriever = AgentRetriever("legal_compliance")
+
+
+# ----------------------------
+# LLM (tool-enabled)
+# ----------------------------
 llm = LLMFactory.reasoning_llm()
+llm_with_tools = llm.bind_tools(compliance_tools)
 
 
+# ----------------------------
+# Prompt
+# ----------------------------
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+        You are a compliance and AML investigation agent.
+
+        Your responsibilities:
+        - Detect sanctions risks
+        - Identify AML violations
+        - Check regulatory compliance issues
+
+        You MUST use the provided RAG context as authoritative compliance knowledge.
+        You may also use tools for additional verification.
+
+        Output format:
+        - risk_score (0-1)
+        - violations
+        - reasoning
+        - confidence
+        """,
+        ),
+        ("human", "{input}"),
+        ("placeholder", "{agent_scratchpad}"),
+    ]
+)
+
+
+# ----------------------------
+# Agent
+# ----------------------------
+agent = create_tool_calling_agent(llm_with_tools, compliance_tools, prompt)
+agent_executor = AgentExecutor(agent=agent, tools=compliance_tools, verbose=True)
+
+
+# ----------------------------
+# NODE FUNCTION
+# ----------------------------
 def compliance_node(state):
-
     tx = state["transaction"]
 
-    context = retriever.search(str(tx))
+    rag_context = rag_retriever.search(str(tx))
 
-    prompt = f"""
-    Check sanctions, AML and regulatory concerns.
+    result = agent_executor.invoke({"input": f"""
+        Check sanctions, AML, and regulatory concerns.
 
-    {tx}
+        Transaction:
+        {tx}
 
-    Context:
-    {context}
-    """
+        RAG CONTEXT (authoritative compliance knowledge):
+        {rag_context}
 
-    result = llm.invoke(prompt)
+        Use tools if additional compliance verification is required.
+        """})
 
-    return {"compliance_result": {"analysis": result.content}}
+    return {"compliance_result": {"analysis": result["output"]}}

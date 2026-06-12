@@ -86,7 +86,9 @@ MODEL_CONFIG = {
 }
 
 
-KAFKA_CONFIG={
+KAFKA_CONFIG = {
     "bootstrap.servers": os.getenv("BOOTSTRAP_SERVERS"),
     "client.id": os.getenv("CLIENT_ID"),
 }
+
+MAX_ITERATIONS = 3
