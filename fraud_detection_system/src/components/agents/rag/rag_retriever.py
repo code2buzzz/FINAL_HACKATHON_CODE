@@ -38,7 +38,7 @@ class AgentRetriever:
         )
 
         self.vector_store = Chroma(
-            collection_name=self.collection_name,
+            collection_name="fraud_documents_knowledge_base",
             embedding_function=self.embeddings,
             persist_directory=self.persist_directory,
         )
